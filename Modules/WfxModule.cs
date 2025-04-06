@@ -123,6 +123,40 @@ public partial class WfxModule : InteractionModuleBase<SocketInteractionContext>
 		}
 	}
 
+	[CheckBanned]
+	[SlashCommand("analyze", "Analyze an image")]
+	public async Task AnalyzeAsync(
+		[Summary("image", "Upload an image to analyze")] IAttachment image)
+	{
+		try
+		{
+			await DeferAsync();
+			var tempPath = Path.Join(Path.GetTempPath(), image.Filename);
+			var data = await _stableDiffusion.GetMetadata(image.Url, tempPath);
+			var metadataEmbed = new EmbedBuilder()
+				.WithTitle("🔍 Image Analysis Results")
+				.WithImageUrl(image.Url)
+				.WithDescription($"__{data}__")
+				.WithColor(new Color(255, 182, 193)) 
+				.WithAuthor(name: "✨ Anna Yanami AI", iconUrl: Context.Client.CurrentUser.GetAvatarUrl())
+				.WithCurrentTimestamp();
+
+			await FollowupAsync(embed: metadataEmbed.Build());
+		}
+		catch (Exception ex)
+		{
+			var errorEmbed = new EmbedBuilder()
+				.WithTitle("⚠️ Oopsie!")
+				.WithDescription($"Something went wrong: {ex.Message}")
+				.WithColor(Color.Red)
+				.WithAuthor(name: "✨ Anna Yanami AI", iconUrl: Context.Client.CurrentUser.GetAvatarUrl())
+				.WithCurrentTimestamp();
+
+			await Context.Interaction.DeleteOriginalResponseAsync();
+			await FollowupAsync(embed: errorEmbed.Build(), ephemeral: true);
+		}
+	}
+
 	private record Dimension(int Width, int Height);
 
 	[GeneratedRegex(@"(\d+)\s*[xX]\s*(\d+)")]
